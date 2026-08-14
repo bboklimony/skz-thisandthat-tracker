@@ -3,6 +3,24 @@ import crypto from 'crypto';
 export const COOKIE_NAME = 'skzsess';
 export const NICK_RE = /^[a-zA-Z0-9가-힣_.\-]{2,20}$/;
 
+// Nicknames allowed to manage invite codes via /api/admin-invites. Add more
+// strings here later if other people should also be able to issue codes.
+export const ADMIN_NICKNAMES = ['BBOKLIMONY'];
+export function isAdmin(nickname) {
+  return !!nickname && ADMIN_NICKNAMES.includes(nickname);
+}
+
+// Invite codes: 8 chars, uppercase letters + digits, skipping visually
+// ambiguous characters (0/O, 1/I/L) so they're easy to read/type/share.
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export function generateInviteCode() {
+  let out = '';
+  for (let i = 0; i < 8; i++) {
+    out += INVITE_ALPHABET[crypto.randomInt(INVITE_ALPHABET.length)];
+  }
+  return out;
+}
+
 // The Redis/Upstash token doubles as our HMAC signing secret: it's already a
 // unique per-deployment secret injected by Vercel, so this needs no extra
 // env var for a non-technical user to set up.

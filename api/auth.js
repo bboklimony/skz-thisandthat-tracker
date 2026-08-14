@@ -116,10 +116,37 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'weak_password', message: '비밀번호는 4자 이상으로 해주세요.' });
       return;
     }
+    const inviteCode = (body.inviteCode || '').trim().toUpperCase();
+    if (!inviteCode) {
+      res.status(400).json({ error: 'invite_code_required', message: '가입하려면 초대 코드가 필요해요.' });
+      return;
+    }
+    const inviteKey = `invite:${inviteCode}`;
+    const invite = await redis.get(inviteKey);
+    if (!invite) {
+      res.status(400).json({ error: 'invalid_invite_code', message: '초대 코드가 올바르지 않아요.' });
+      return;
+    }
+    if (invite.usedBy) {
+      res.status(400).json({ error: 'invite_code_used', message: '이미 사용된 초대 코드예요.' });
+      return;
+    }
     const userKey = `user:${nickname}`;
     const existing = await redis.get(userKey);
     if (existing) {
       res.status(409).json({ error: 'nickname_taken', message: '이미 사용 중인 닉네임이에요.' });
+      return;
+    }
+    // Atomically claim the code with SET-if-not-exists on a dedicated lock
+    // key. Two people submitting the same code at nearly the same instant
+    // would otherwise both pass the `invite.usedBy` check above before
+    // either write lands (a classic check-then-act race) and both get
+    // accounts off one paid code. Only the request that wins this NX write
+    // is allowed to proceed; everyone else is told the code is used, even
+    // if they "checked" first.
+    const claimed = await redis.set(`${inviteKey}:claim`, nickname, { nx: true });
+    if (claimed !== 'OK') {
+      res.status(400).json({ error: 'invite_code_used', message: '이미 사용된 초대 코드예요.' });
       return;
     }
     const salt = crypto.randomBytes(16).toString('hex');
@@ -127,6 +154,10 @@ export default async function handler(req, res) {
     const shareToken = newShareToken();
     await redis.set(userKey, { salt, hash, createdAt: new Date().toISOString(), shareToken });
     await redis.set(`share:${shareToken}`, nickname);
+    // This second write is just to keep the admin invite-list display
+    // (usedBy/usedAt/note) accurate; the claim key above is what actually
+    // enforces single-use.
+    await redis.set(inviteKey, { ...invite, usedBy: nickname, usedAt: new Date().toISOString() });
     setSessionCookie(req, res, nickname);
     res.status(200).json({ ok: true, nickname });
     return;

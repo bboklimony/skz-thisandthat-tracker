@@ -138,6 +138,7 @@
   .board-col{background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:10px; min-height:120px;}
   .board-col-head{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700; padding:2px 4px 10px; border-bottom:1px solid var(--grid); margin-bottom:8px;}
   .board-col-head .n{color:var(--muted); font-weight:600;}
+  .board-col-head .n-sub{color:var(--muted); font-weight:500; font-size:11px;}
   .col-need .board-col-head{color:var(--text-secondary);}
   .col-trading .board-col-head{color:#a06600;}
   :root[data-theme="dark"] .col-trading .board-col-head{color:#fab219;}
@@ -212,7 +213,7 @@
   <div class="topbar">
     <div>
       <h1 id="pageTitle">STRAY KIDS · THIS&amp;THAT 앨범 구성품 트래커</h1>
-      <div class="sub">8멤버 × 21종 = <b id="totalCountLabel">168</b>개 구성품 · 공개 보기 (읽기 전용)</div>
+      <div class="sub" id="subCountLine">8멤버 × 21종 = <b id="totalCountLabel">168</b>개 구성품 · 공개 보기 (읽기 전용)</div>
       <div class="credit">제작자: BBOK-LIMONY (<a href="https://twitter.com/bboklimony915" target="_blank" rel="noopener">@bboklimony915</a>)</div>
     </div>
     <div>
@@ -315,6 +316,11 @@
 <script>
 const VERSIONS = ["TRUCK","FANS","LP","&","THIS","THAT","THIS&THAT"];
 const MEMBER_MAP = {}; MEMBERS.forEach(m=>MEMBER_MAP[m.code]=m);
+const ITEMS_PER_MEMBER = Math.round(ITEMS.length / MEMBERS.length);
+(function initHeaderCounts(){
+  const subEl = document.getElementById('subCountLine');
+  if(subEl) subEl.innerHTML = `${MEMBERS.length}멤버 × ${ITEMS_PER_MEMBER}종 = <b id="totalCountLabel">${ITEMS.length}</b>개 구성품 · 공개 보기 (읽기 전용)`;
+})();
 
 function defaultItemState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
 let ITEM_STATE = {};
@@ -330,6 +336,7 @@ function toast(msg){
 }
 function isOwned(st){ return st.status==='owned_original' || st.status==='owned_traded'; }
 function itemState(id){ return ITEM_STATE[id]; }
+function sumQty(items){ return items.reduce((sum,it)=>sum + (itemState(it.id).qty||0), 0); }
 
 function computeMemberStats(code, version){
   const items = (version && version!=='ALL')
@@ -497,19 +504,19 @@ function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = `
     <div class="board-col col-need">
-      <div class="board-col-head">교환 필요 <span class="n">${groups.need.length}</span></div>
+      <div class="board-col-head">교환 필요 <span class="n">${groups.need.length}종</span></div>
       <div class="cards">${groups.need.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
     <div class="board-col col-trading">
-      <div class="board-col-head">교환중 <span class="n">${groups.trading.length}</span></div>
+      <div class="board-col-head">교환중 <span class="n">${groups.trading.length}종</span></div>
       <div class="cards">${groups.trading.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
     <div class="board-col col-owned">
-      <div class="board-col-head">원래 보유 <span class="n">${groups.owned_original.length}</span></div>
+      <div class="board-col-head">원래 보유 <span class="n">${sumQty(groups.owned_original)}개 <span class="n-sub">(${groups.owned_original.length}종)</span></span></div>
       <div class="cards">${groups.owned_original.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
     <div class="board-col col-owned">
-      <div class="board-col-head">교환 완료 <span class="n">${groups.owned_traded.length}</span></div>
+      <div class="board-col-head">교환 완료 <span class="n">${sumQty(groups.owned_traded)}개 <span class="n-sub">(${groups.owned_traded.length}종)</span></span></div>
       <div class="cards">${groups.owned_traded.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
   `;

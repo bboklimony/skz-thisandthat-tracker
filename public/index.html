@@ -142,6 +142,7 @@
   .board-col{background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:10px; min-height:120px;}
   .board-col-head{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700; padding:2px 4px 10px; border-bottom:1px solid var(--grid); margin-bottom:8px;}
   .board-col-head .n{color:var(--muted); font-weight:600;}
+  .board-col-head .n-sub{color:var(--muted); font-weight:500; font-size:11px;}
   .col-need .board-col-head{color:var(--text-secondary);}
   .col-trading .board-col-head{color:#a06600;}
   :root[data-theme="dark"] .col-trading .board-col-head{color:#fab219;}
@@ -292,6 +293,7 @@
       <button class="btn primary authBtn" id="btnLogin" type="button">로그인</button>
     </div>
     <div id="authFormSignup" style="display:none;">
+      <label>초대 코드</label><input type="text" id="signup_invitecode" autocomplete="off" placeholder="전달받은 초대 코드를 입력하세요" style="text-transform:uppercase;">
       <label>닉네임</label><input type="text" id="signup_nickname" autocomplete="username" placeholder="2~20자, 한글/영문/숫자/-_">
       <label>비밀번호</label><input type="password" id="signup_password" autocomplete="new-password" placeholder="4자 이상">
       <label>비밀번호 확인</label><input type="password" id="signup_password2">
@@ -306,7 +308,7 @@
   <div class="topbar">
     <div>
       <h1>STRAY KIDS · THIS&amp;THAT 앨범 구성품 트래커</h1>
-      <div class="sub">8멤버 × 21종 = <b id="totalCountLabel">168</b>개 구성품 · 분철/교환 진행 관리</div>
+      <div class="sub" id="subCountLine">8멤버 × 21종 = <b id="totalCountLabel">168</b>개 구성품 · 분철/교환 진행 관리</div>
       <div class="credit">제작자: BBOK-LIMONY (<a href="https://twitter.com/bboklimony915" target="_blank" rel="noopener">@bboklimony915</a>)</div>
     </div>
     <div class="topbar-actions">
@@ -328,6 +330,7 @@
     <div class="tab" data-tab="trades">교환 관리</div>
     <div class="tab" data-tab="shipping">분철 발송</div>
     <div class="tab" data-tab="fullship">전체 발송</div>
+    <div class="tab" data-tab="invites" id="adminInviteTab" style="display:none;">초대 코드 관리</div>
   </div>
 
   <div class="exportbar" id="exportbar">
@@ -462,7 +465,7 @@
   <!-- FULL SHIP -->
   <div class="panel" id="panel-fullship">
     <h2 class="section-title" style="margin-top:0;">전체 발송 관리</h2>
-    <div class="sub" style="color:var(--text-secondary); font-size:12.5px; margin-bottom:14px;">
+    <div class="sub" id="fullshipDesc" style="color:var(--text-secondary); font-size:12.5px; margin-bottom:14px;">
       한 사람에게 특정 멤버의 구성품 21개를 통째로 보낼 때 사용해요. 일부만 보낼 땐 "분철 발송" 탭을 이용하세요.
     </div>
     <div class="stat-row" id="fullshipStatRow"></div>
@@ -473,12 +476,25 @@
           <option>준비중</option><option>배송중</option><option>배송완료</option><option>보류</option>
         </select></div>
       <div><label>운송장번호</label><input type="text" id="ff_tracking" placeholder="선택 입력"></div>
-      <div class="full"><label>보낼 멤버 (전체 21개 세트로 담겨요)</label><div class="chipgroup" id="ffMemberChips"></div></div>
+      <div class="full"><label id="ffMemberLabel">보낼 멤버 (전체 21개 세트로 담겨요)</label><div class="chipgroup" id="ffMemberChips"></div></div>
       <div class="full" id="ff_summary" style="font-size:12px;color:var(--muted);">멤버를 선택해주세요.</div>
       <div class="full"><label>메모</label><input type="text" id="ff_memo" placeholder="선택 입력"></div>
       <div class="full" style="text-align:right;"><button class="btn primary" id="btnAddFullShip">+ 받는 분 추가</button></div>
     </div>
     <div id="fullshipTableRoot"></div>
+  </div>
+
+  <!-- ADMIN: INVITE CODES (only visible to admin nicknames; server also enforces this) -->
+  <div class="panel" id="panel-invites">
+    <h2 class="section-title" style="margin-top:0;">초대 코드 관리</h2>
+    <div class="sub" style="color:var(--text-secondary); font-size:12.5px; margin-bottom:14px;">
+      회원가입에는 초대 코드가 필요해요. 아래에서 코드를 발급해 결제/전달 후 공유해주세요. 코드는 1인 1회용이에요 (한 번 가입에 쓰이면 자동으로 사용 처리돼요).
+    </div>
+    <div class="tradeform">
+      <div><label>메모 (선택)</label><input type="text" id="invite_note" placeholder="예: 트위터 @abc 판매분"></div>
+      <div class="full" style="text-align:right;"><button class="btn primary" id="btnCreateInvite">+ 코드 발급</button></div>
+    </div>
+    <div id="inviteTableRoot"></div>
   </div>
 
   <div class="footnote" id="footnote"></div>
@@ -511,6 +527,15 @@
 const VERSIONS = ["TRUCK","FANS","LP","&","THIS","THAT","THIS&THAT"];
 
 const MEMBER_MAP = {}; MEMBERS.forEach(m=>MEMBER_MAP[m.code]=m);
+const ITEMS_PER_MEMBER = Math.round(ITEMS.length / MEMBERS.length);
+(function initHeaderCounts(){
+  const subEl = document.getElementById('subCountLine');
+  if(subEl) subEl.innerHTML = `${MEMBERS.length}멤버 × ${ITEMS_PER_MEMBER}종 = <b id="totalCountLabel">${ITEMS.length}</b>개 구성품 · 분철/교환 진행 관리`;
+  const fsDesc = document.getElementById('fullshipDesc');
+  if(fsDesc) fsDesc.textContent = `한 사람에게 특정 멤버의 구성품 ${ITEMS_PER_MEMBER}개를 통째로 보낼 때 사용해요. 일부만 보낼 땐 "분철 발송" 탭을 이용하세요.`;
+  const ffLabel = document.getElementById('ffMemberLabel');
+  if(ffLabel) ffLabel.textContent = `보낼 멤버 (전체 ${ITEMS_PER_MEMBER}개 세트로 담겨요)`;
+})();
 
 // ---------- state ----------
 function defaultItemState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
@@ -530,6 +555,7 @@ function toast(msg){
 }
 function isOwned(st){ return st.status==='owned_original' || st.status==='owned_traded'; }
 function itemState(id){ return ITEM_STATE[id]; }
+function sumQty(items){ return items.reduce((sum,it)=>sum + (itemState(it.id).qty||0), 0); }
 
 function computeMemberStats(code, version){
   const items = (version && version!=='ALL')
@@ -568,6 +594,7 @@ document.getElementById('tabs').addEventListener('click', (e)=>{
   if(tab.dataset.tab==='trades') renderTrades();
   if(tab.dataset.tab==='shipping') renderShipping();
   if(tab.dataset.tab==='fullship') renderFullship();
+  if(tab.dataset.tab==='invites') renderInvites();
 });
 
 // ---------- OVERVIEW ----------
@@ -738,19 +765,19 @@ function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = `
     <div class="board-col col-need">
-      <div class="board-col-head">교환 필요 <span class="n">${groups.need.length}</span></div>
+      <div class="board-col-head">교환 필요 <span class="n">${groups.need.length}종</span></div>
       <div class="cards">${groups.need.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
     <div class="board-col col-trading">
-      <div class="board-col-head">교환중 <span class="n">${groups.trading.length}</span></div>
+      <div class="board-col-head">교환중 <span class="n">${groups.trading.length}종</span></div>
       <div class="cards">${groups.trading.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
     <div class="board-col col-owned">
-      <div class="board-col-head">원래 보유 <span class="n">${groups.owned_original.length}</span></div>
+      <div class="board-col-head">원래 보유 <span class="n">${sumQty(groups.owned_original)}개 <span class="n-sub">(${groups.owned_original.length}종)</span></span></div>
       <div class="cards">${groups.owned_original.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
     <div class="board-col col-owned">
-      <div class="board-col-head">교환 완료 <span class="n">${groups.owned_traded.length}</span></div>
+      <div class="board-col-head">교환 완료 <span class="n">${sumQty(groups.owned_traded)}개 <span class="n-sub">(${groups.owned_traded.length}종)</span></span></div>
       <div class="cards">${groups.owned_traded.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
     </div>
   `;
@@ -1200,7 +1227,7 @@ function updateFfSummary(){
   const el = document.getElementById('ff_summary');
   if(ffBasketMembers.size===0){ el.textContent = '멤버를 선택해주세요.'; return; }
   const names = [...ffBasketMembers].map(c=>MEMBER_MAP[c].name);
-  el.textContent = `총 ${names.length}명 · ${names.join(', ')} · 구성품 ${names.length*21}개 담김`;
+  el.textContent = `총 ${names.length}명 · ${names.join(', ')} · 구성품 ${names.length*ITEMS_PER_MEMBER}개 담김`;
 }
 document.getElementById('btnAddFullShip').addEventListener('click', ()=>{
   const name = document.getElementById('ff_name').value.trim();
@@ -1254,7 +1281,7 @@ function renderFullship(){
     ${FULLSHIP.map(r=>{
       const membersHtml = (r.members||[]).map(code=>{
         const m = MEMBER_MAP[code]; if(!m) return '';
-        return `<span class="member-chip" style="background:${m.color}">${m.name} (21개)</span>`;
+        return `<span class="member-chip" style="background:${m.color}">${m.name} (${ITEMS_PER_MEMBER}개)</span>`;
       }).join(' ');
       return `<tr>
         <td>${r.name}</td>
@@ -1295,6 +1322,76 @@ function renderFullship(){
     });
   });
 }
+
+// ---------- ADMIN: INVITE CODES ----------
+// Client-side check only decides whether to *show* the tab; the API
+// endpoint independently re-checks the logged-in session server-side, so
+// this list being out of date or edited in devtools can't grant real access.
+const ADMIN_NICKNAMES_CLIENT = ['BBOKLIMONY'];
+function setupAdminTab(){
+  const tab = document.getElementById('adminInviteTab');
+  if(!tab) return;
+  tab.style.display = ADMIN_NICKNAMES_CLIENT.includes(currentUser) ? '' : 'none';
+}
+async function inviteRequest(payload){
+  const opts = payload ? {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+  } : {cache:'no-store'};
+  const res = await fetch('/api/admin-invites', opts);
+  const data = await res.json().catch(()=>({}));
+  return {ok: res.ok, data};
+}
+async function renderInvites(){
+  const root = document.getElementById('inviteTableRoot');
+  root.innerHTML = '<div class="empty-state">불러오는 중…</div>';
+  const {ok, data} = await inviteRequest(null);
+  if(!ok){
+    root.innerHTML = `<div class="empty-state">${(data&&data.message)||'불러오지 못했어요.'}</div>`;
+    return;
+  }
+  const codes = data.codes || [];
+  if(codes.length===0){
+    root.innerHTML = '<div class="empty-state">아직 발급한 코드가 없어요. 위에서 코드를 발급해보세요.</div>';
+    return;
+  }
+  root.innerHTML = `<table class="datatable"><thead><tr>
+    <th>코드</th><th>상태</th><th>사용한 닉네임</th><th>메모</th><th>발급일</th><th>사용일</th><th></th>
+  </tr></thead><tbody>
+    ${codes.map(c=>`<tr>
+      <td style="font-family:monospace; font-weight:700; letter-spacing:0.5px;">${c.code}</td>
+      <td>${c.usedBy ? '<span style=\"color:var(--muted);\">사용됨</span>' : '<span style=\"color:var(--good-text);font-weight:700;\">미사용</span>'}</td>
+      <td>${c.usedBy || '-'}</td>
+      <td>${c.note || '-'}</td>
+      <td>${(c.createdAt||'').slice(0,10) || '-'}</td>
+      <td>${(c.usedAt||'').slice(0,10) || '-'}</td>
+      <td>${c.usedBy ? '' : `<button class="btn small danger" data-revokeinvite="${c.code}">삭제</button>`}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+  root.querySelectorAll('[data-revokeinvite]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm(`코드 ${btn.dataset.revokeinvite}를 삭제할까요? (아직 사용되지 않은 코드만 삭제 가능)`)) return;
+      const {ok, data} = await inviteRequest({action:'revoke', code: btn.dataset.revokeinvite});
+      if(!ok) toast((data&&data.message) || '삭제에 실패했어요.');
+      renderInvites();
+    });
+  });
+}
+document.getElementById('btnCreateInvite').addEventListener('click', async ()=>{
+  const note = document.getElementById('invite_note').value.trim();
+  const btn = document.getElementById('btnCreateInvite');
+  btn.disabled = true;
+  const {ok, data} = await inviteRequest({action:'create', note});
+  btn.disabled = false;
+  if(ok){
+    document.getElementById('invite_note').value = '';
+    toast(`코드가 발급됐어요: ${data.code}`);
+    renderInvites();
+  }else{
+    toast((data&&data.message) || '코드 발급에 실패했어요.');
+  }
+});
 
 // ---------- serialize / apply ----------
 function serializeState(){
@@ -1373,13 +1470,15 @@ document.getElementById('btnLogin').addEventListener('click', async ()=>{
   }
 });
 document.getElementById('btnSignup').addEventListener('click', async ()=>{
+  const inviteCode = document.getElementById('signup_invitecode').value.trim();
   const nickname = document.getElementById('signup_nickname').value.trim();
   const password = document.getElementById('signup_password').value;
   const password2 = document.getElementById('signup_password2').value;
+  if(!inviteCode){ setAuthMsg('초대 코드를 입력해주세요.', 'error'); return; }
   if(!nickname || !password){ setAuthMsg('닉네임과 비밀번호를 입력해주세요.', 'error'); return; }
   if(password !== password2){ setAuthMsg('비밀번호가 서로 달라요.', 'error'); return; }
   setAuthMsg('가입 중…');
-  const {ok, data} = await authRequest({action:'signup', nickname, password});
+  const {ok, data} = await authRequest({action:'signup', inviteCode, nickname, password});
   if(ok){
     currentUser = data.nickname;
     await startApp();
@@ -1404,6 +1503,7 @@ async function checkAuth(){
 async function startApp(){
   hideAuthOverlay();
   updateUserBadge();
+  setupAdminTab();
   await refreshShareToken();
   await loadStateFromServer();
   renderAll();
@@ -1459,7 +1559,12 @@ document.getElementById('btnRegenShareLink').addEventListener('click', async ()=
 // ---------- image / PDF export ----------
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function getTabList(){
-  return [...document.querySelectorAll('.tab')].map(t=>({key:t.dataset.tab, label:t.textContent.trim()}));
+  // Skip tabs hidden via inline display:none (e.g. the admin-only invite
+  // codes tab for non-admin users) so "전체 내보내기" doesn't try to
+  // screenshot a panel the current user can't actually see/use.
+  return [...document.querySelectorAll('.tab')]
+    .filter(t=>t.style.display !== 'none')
+    .map(t=>({key:t.dataset.tab, label:t.textContent.trim()}));
 }
 async function captureActivePanel(){
   const panel = document.querySelector('.panel.active');
