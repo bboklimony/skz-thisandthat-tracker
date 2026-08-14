@@ -69,6 +69,17 @@
   }
   .tab.active{color:var(--text-primary); border-bottom-color:var(--text-primary);}
 
+  .poolbar{display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+  .poolbar .gl{font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+  .poolToggle{display:inline-flex; gap:3px; background:var(--surface-1); border:1px solid var(--border); border-radius:99px; padding:3px;}
+  .poolToggleBtn{
+    border:none; background:none; cursor:pointer; padding:6px 14px; border-radius:99px;
+    font-size:13px; font-weight:700; color:var(--text-secondary);
+  }
+  .poolToggleBtn.active[data-pool="split"]{background:#4a6fe0; color:#fff;}
+  .poolToggleBtn.active[data-pool="personal"]{background:#c25a9e; color:#fff;}
+  .poolHint{font-size:12px; color:var(--muted);}
+
   .panel{display:none;}
   .panel.active{display:block;}
 
@@ -228,6 +239,15 @@
     <div class="tab" data-tab="surplus">여유분 카드</div>
   </div>
 
+  <div class="poolbar">
+    <span class="gl">보고 있는 컬렉션</span>
+    <div class="poolToggle" id="poolToggle">
+      <button class="poolToggleBtn active" data-pool="split" type="button">📦 분철용</button>
+      <button class="poolToggleBtn" data-pool="personal" type="button">🙋 개인용</button>
+    </div>
+    <span class="poolHint" id="poolHint">그룹 분철용 진행 상황이에요.</span>
+  </div>
+
   <div class="exportbar" id="exportbar">
     <span class="gl">내보내기</span>
     <button class="btn small" id="btnExportImage" type="button">🖼️ 현재 화면 이미지로</button>
@@ -322,9 +342,25 @@ const ITEMS_PER_MEMBER = Math.round(ITEMS.length / MEMBERS.length);
   if(subEl) subEl.innerHTML = `${MEMBERS.length}멤버 × ${ITEMS_PER_MEMBER}종 = <b id="totalCountLabel">${ITEMS.length}</b>개 구성품 · 공개 보기 (읽기 전용)`;
 })();
 
-function defaultItemState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+function poolLabel(p){ return p==='personal' ? '개인용' : '분철용'; }
+function defaultPoolState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+function defaultItemState(){ return {split: defaultPoolState(), personal: defaultPoolState()}; }
+function migrateItemStateRecord(raw){
+  if(!raw || typeof raw !== 'object') return defaultItemState();
+  if(raw.split || raw.personal){
+    return {
+      split: Object.assign(defaultPoolState(), raw.split||{}),
+      personal: Object.assign(defaultPoolState(), raw.personal||{}),
+    };
+  }
+  return {
+    split: Object.assign(defaultPoolState(), raw),
+    personal: defaultPoolState(),
+  };
+}
 let ITEM_STATE = {};
 ITEMS.forEach(it=>{ ITEM_STATE[it.id] = defaultItemState(); });
+let currentPool = 'split';
 
 let filters = { members: new Set(MEMBERS.map(m=>m.code)), versions: new Set(VERSIONS), search:'' };
 
@@ -335,7 +371,7 @@ function toast(msg){
   t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 function isOwned(st){ return st.status==='owned_original' || st.status==='owned_traded'; }
-function itemState(id){ return ITEM_STATE[id]; }
+function itemState(id){ return ITEM_STATE[id][currentPool]; }
 function sumQty(items){ return items.reduce((sum,it)=>sum + (itemState(it.id).qty||0), 0); }
 
 function computeMemberStats(code, version){
@@ -371,6 +407,17 @@ document.getElementById('tabs').addEventListener('click', (e)=>{
   if(tab.dataset.tab==='board') renderBoard();
   if(tab.dataset.tab==='gallery') renderGallery();
   if(tab.dataset.tab==='surplus') renderSurplus();
+});
+
+document.querySelectorAll('.poolToggleBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const pool = btn.dataset.pool;
+    if(pool === currentPool) return;
+    currentPool = pool;
+    document.querySelectorAll('.poolToggleBtn').forEach(b=>b.classList.toggle('active', b.dataset.pool===pool));
+    document.getElementById('poolHint').textContent = pool === 'personal' ? '개인 소장품 진행 상황이에요.' : '그룹 분철용 진행 상황이에요.';
+    renderAll();
+  });
 });
 
 let overviewVersion = 'ALL';
@@ -731,7 +778,7 @@ document.getElementById('btnExportPdf').addEventListener('click', async ()=>{
       return;
     }
     if(data.itemState){
-      Object.keys(data.itemState).forEach(id=>{ if(ITEM_STATE[id]) ITEM_STATE[id] = Object.assign(defaultItemState(), data.itemState[id]); });
+      Object.keys(data.itemState).forEach(id=>{ if(ITEM_STATE[id]) ITEM_STATE[id] = migrateItemStateRecord(data.itemState[id]); });
     }
     document.getElementById('pageTitle').textContent = `${data.nickname}님의 STRAY KIDS · THIS&THAT 컬렉션`;
     document.getElementById('footnote').innerHTML =

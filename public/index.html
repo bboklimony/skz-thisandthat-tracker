@@ -72,6 +72,23 @@
   .tab.active{color:var(--text-primary); border-bottom-color:var(--text-primary);}
   .tab .count{color:var(--muted); font-weight:500; margin-left:4px;}
 
+  /* Pool toggle (개인용 / 분철용) */
+  .poolbar{display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+  .poolbar .gl{font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+  .poolToggle{display:inline-flex; gap:3px; background:var(--surface-1); border:1px solid var(--border); border-radius:99px; padding:3px;}
+  .poolToggleBtn{
+    border:none; background:none; cursor:pointer; padding:6px 14px; border-radius:99px;
+    font-size:13px; font-weight:700; color:var(--text-secondary);
+  }
+  .poolToggleBtn.active[data-pool="split"]{background:#4a6fe0; color:#fff;}
+  .poolToggleBtn.active[data-pool="personal"]{background:#c25a9e; color:#fff;}
+  .poolHint{font-size:12px; color:var(--muted);}
+  .pool-tag{font-size:10px; font-weight:700; padding:1px 7px; border-radius:99px; white-space:nowrap;}
+  .pool-tag.split{background:rgba(74,111,224,0.16); color:#3a56b0;}
+  .pool-tag.personal{background:rgba(194,90,158,0.16); color:#a3447e;}
+  :root[data-theme="dark"] .pool-tag.split{color:#8fa8f5;}
+  :root[data-theme="dark"] .pool-tag.personal{color:#e79bcd;}
+
   .panel{display:none;}
   .panel.active{display:block;}
 
@@ -333,6 +350,15 @@
     <div class="tab" data-tab="invites" id="adminInviteTab" style="display:none;">초대 코드 관리</div>
   </div>
 
+  <div class="poolbar">
+    <span class="gl">보고 있는 컬렉션</span>
+    <div class="poolToggle" id="poolToggle">
+      <button class="poolToggleBtn active" data-pool="split" type="button">📦 분철용</button>
+      <button class="poolToggleBtn" data-pool="personal" type="button">🙋 개인용</button>
+    </div>
+    <span class="poolHint" id="poolHint">그룹 분철용 진행 상황이에요. 개인 소장품은 "개인용"에서 따로 관리해요.</span>
+  </div>
+
   <div class="exportbar" id="exportbar">
     <span class="gl">내보내기/공유</span>
     <button class="btn small" id="btnExportImage" type="button">🖼️ 현재 화면 이미지로</button>
@@ -409,6 +435,9 @@
       <div><label>날짜</label><input type="date" id="tf_date"></div>
       <div><label>받을 멤버</label><select id="tf_member"></select></div>
       <div><label>받을 구성품</label><select id="tf_item"></select></div>
+      <div><label>받은 카드는 소속</label><select id="tf_receive_pool">
+          <option value="split">분철용</option><option value="personal">개인용</option>
+        </select></div>
       <div><label>거래 상대</label><input type="text" id="tf_partner" placeholder="트위터 @, 카카오 등"></div>
       <div><label>상태</label><select id="tf_status">
           <option>제안함</option><option>진행중</option><option>완료</option><option>취소</option>
@@ -420,7 +449,11 @@
           <button class="btn small" id="tf_give_add" type="button">+ 담기</button>
         </div>
       </div>
+      <div><label>줄 카드는 소속</label><select id="tf_give_pool">
+          <option value="split">분철용</option><option value="personal">개인용</option>
+        </select></div>
       <div class="full" id="tf_give_basket"><span style="font-size:12px;color:var(--muted);">담긴 카드가 없어요. "내가 줄 멤버/구성품"을 고르고 "담기"를 눌러주세요.</span></div>
+      <div class="full" style="font-size:11.5px; color:var(--muted);">💡 개인 소장 카드를 주고 분철용 카드를 받는 것처럼, 서로 다른 소속끼리도 교환 기록을 남길 수 있어요.</div>
       <div class="full" id="tf_preview">
         <img id="tf_previewImg" src="" alt="">
         <span id="tf_previewLabel">받을 구성품을 선택하면 예시 이미지가 표시돼요.</span>
@@ -429,6 +462,12 @@
       <div class="full" style="text-align:right;"><button class="btn primary" id="btnAddTrade">+ 교환 기록 추가</button></div>
     </div>
     <div id="tradeTableRoot"></div>
+
+    <h2 class="section-title">카드 전환 내역 (개인 ↔ 분철)</h2>
+    <div class="sub" style="color:var(--text-secondary); font-size:12.5px; margin-bottom:14px;">
+      구성품 보드/갤러리에서 "↔ 전환" 버튼을 눌러 소속을 바꾼 기록이에요. 거래 상대 없이 내부적으로 옮긴 내역만 여기 남아요.
+    </div>
+    <div id="poolMoveTableRoot"></div>
   </div>
 
   <!-- SHIPPING -->
@@ -538,11 +577,40 @@ const ITEMS_PER_MEMBER = Math.round(ITEMS.length / MEMBERS.length);
 })();
 
 // ---------- state ----------
-function defaultItemState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+// Each item is tracked independently in TWO pools: "split" (분철용 — the
+// group album this app originally tracked) and "personal" (개인용 — the
+// user's own personal collection). Each pool has its own full need/trading/
+// owned lifecycle, so the same card can be e.g. already owned personally
+// while still being sought for the split.
+const POOL_KEYS = ['split','personal'];
+function poolLabel(p){ return p==='personal' ? '개인용' : '분철용'; }
+function defaultPoolState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+function defaultItemState(){ return {split: defaultPoolState(), personal: defaultPoolState()}; }
+// Accepts either the new {split,personal} shape or an old flat
+// {status,qty,round,stage} record (from before pools existed) and returns a
+// normalized {split,personal} record. Old flat records are treated as
+// "split" data (this app's sole purpose before personal tracking existed),
+// so nobody's existing progress is lost — "personal" just starts fresh.
+function migrateItemStateRecord(raw){
+  if(!raw || typeof raw !== 'object') return defaultItemState();
+  if(raw.split || raw.personal){
+    return {
+      split: Object.assign(defaultPoolState(), raw.split||{}),
+      personal: Object.assign(defaultPoolState(), raw.personal||{}),
+    };
+  }
+  return {
+    split: Object.assign(defaultPoolState(), raw),
+    personal: defaultPoolState(),
+  };
+}
 let ITEM_STATE = {};
 ITEMS.forEach(it=>{ ITEM_STATE[it.id] = defaultItemState(); });
+let currentPool = 'split';
 let TRADE_LOG = [];
 let tradeSeq = 1;
+let POOL_MOVE_LOG = [];
+let poolMoveSeq = 1;
 
 let filters = { members: new Set(MEMBERS.map(m=>m.code)), versions: new Set(VERSIONS), search:'' };
 
@@ -554,7 +622,7 @@ function toast(msg){
   t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 function isOwned(st){ return st.status==='owned_original' || st.status==='owned_traded'; }
-function itemState(id){ return ITEM_STATE[id]; }
+function itemState(id){ return ITEM_STATE[id][currentPool]; }
 function sumQty(items){ return items.reduce((sum,it)=>sum + (itemState(it.id).qty||0), 0); }
 
 function computeMemberStats(code, version){
@@ -595,6 +663,37 @@ document.getElementById('tabs').addEventListener('click', (e)=>{
   if(tab.dataset.tab==='shipping') renderShipping();
   if(tab.dataset.tab==='fullship') renderFullship();
   if(tab.dataset.tab==='invites') renderInvites();
+});
+
+// ---------- pool toggle (개인용 / 분철용) ----------
+const POOL_ONLY_TABS = ['shipping','fullship']; // group-shipping tabs make sense only for 분철용
+function updatePoolTabVisibility(){
+  const hide = currentPool === 'personal';
+  POOL_ONLY_TABS.forEach(key=>{
+    const tabEl = document.querySelector(`.tab[data-tab="${key}"]`);
+    if(!tabEl) return;
+    tabEl.style.display = hide ? 'none' : '';
+    if(hide && tabEl.classList.contains('active')){
+      tabEl.classList.remove('active');
+      document.getElementById('panel-'+key).classList.remove('active');
+      const overviewTab = document.querySelector('.tab[data-tab="overview"]');
+      overviewTab.classList.add('active');
+      document.getElementById('panel-overview').classList.add('active');
+    }
+  });
+}
+document.querySelectorAll('.poolToggleBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const pool = btn.dataset.pool;
+    if(pool === currentPool) return;
+    currentPool = pool;
+    document.querySelectorAll('.poolToggleBtn').forEach(b=>b.classList.toggle('active', b.dataset.pool===pool));
+    document.getElementById('poolHint').textContent = pool === 'personal'
+      ? '개인 소장품 진행 상황이에요. 분철 발송/전체 발송 탭은 여기서는 숨겨져요.'
+      : '그룹 분철용 진행 상황이에요. 개인 소장품은 "개인용"에서 따로 관리해요.';
+    updatePoolTabVisibility();
+    renderAll();
+  });
 });
 
 // ---------- OVERVIEW ----------
@@ -680,10 +779,12 @@ function actionButtonsHtml(it, st){
             <button class="btn small" data-act="cancel-trade" data-id="${it.id}">취소</button>`;
   }
   // owned
+  const otherPool = currentPool==='split' ? 'personal' : 'split';
   return `<span class="qty-ctl">보유 ${st.qty}개
       <button data-act="qty-minus" data-id="${it.id}">−</button>
       <button data-act="qty-plus" data-id="${it.id}">+</button>
     </span>
+    <button class="btn small" data-act="convert-pool" data-id="${it.id}" title="이 카드 1개를 ${poolLabel(otherPool)}으로 옮겨요">↔ ${poolLabel(otherPool)}로 전환</button>
     <button class="btn small" data-act="revert-need" data-id="${it.id}">되돌리기</button>`;
 }
 
@@ -702,6 +803,24 @@ function bindActionEvents(root){
         case 'revert-need': st.status='need'; st.qty=0; break;
         case 'qty-plus': st.qty += 1; break;
         case 'qty-minus': st.qty = Math.max(1, st.qty-1); break;
+        case 'convert-pool': {
+          if(st.qty <= 0){ toast('전환할 보유 수량이 없어요'); break; }
+          const otherPool = currentPool==='split' ? 'personal' : 'split';
+          const to = ITEM_STATE[id][otherPool];
+          st.qty -= 1;
+          if(st.qty <= 0){ st.status='need'; st.qty=0; st.round=1; st.stage='구하는 중'; }
+          if(!isOwned(to)) to.status = 'owned_original';
+          to.qty += 1;
+          POOL_MOVE_LOG.unshift({
+            id: 'm'+(poolMoveSeq++),
+            date: new Date().toISOString().slice(0,10),
+            itemId: id,
+            from: currentPool,
+            to: otherPool,
+          });
+          toast(`${poolLabel(otherPool)}으로 전환했어요`);
+          break;
+        }
       }
       scheduleSave();
       renderAll(true);
@@ -917,6 +1036,8 @@ function populateTradeSelects(){
     memSel.addEventListener('change', refreshTradeItemSelect);
     document.getElementById('tf_item').addEventListener('change', updateTradePreview);
     document.getElementById('tf_date').valueAsDate = new Date();
+    document.getElementById('tf_receive_pool').value = currentPool;
+    document.getElementById('tf_give_pool').value = currentPool;
     giveMemSel.addEventListener('change', refreshTradeGiveItemSelect);
     document.getElementById('tf_give_add').addEventListener('click', ()=>{
       const itemId = document.getElementById('tf_give_item').value;
@@ -980,7 +1101,9 @@ document.getElementById('btnAddTrade').addEventListener('click', ()=>{
     date: document.getElementById('tf_date').value || '',
     member: memberCode,
     itemId: itemId || null,
+    receivePool: document.getElementById('tf_receive_pool').value || 'split',
     giveItems: [...tradeGiveBasket],
+    givePool: document.getElementById('tf_give_pool').value || 'split',
     partner: document.getElementById('tf_partner').value,
     status: document.getElementById('tf_status').value,
     memo: document.getElementById('tf_memo').value,
@@ -996,13 +1119,14 @@ document.getElementById('btnAddTrade').addEventListener('click', ()=>{
 function renderTrades(){
   populateTradeSelects();
   renderTradeGiveBasket();
+  renderPoolMoveLog();
   const root = document.getElementById('tradeTableRoot');
   if(TRADE_LOG.length===0){
     root.innerHTML = '<div class="empty-state">아직 등록된 교환 기록이 없어요. 위 폼으로 추가해보세요.</div>';
     return;
   }
   root.innerHTML = `<table class="datatable"><thead><tr>
-    <th></th><th>날짜</th><th>멤버</th><th>받을 구성품</th><th>내가 줄 카드</th><th>거래상대</th><th>상태</th><th>메모</th><th></th>
+    <th></th><th>날짜</th><th>멤버</th><th>받을 구성품</th><th>받은 소속</th><th>내가 줄 카드</th><th>준 소속</th><th>거래상대</th><th>상태</th><th>메모</th><th></th>
   </tr></thead><tbody>
     ${TRADE_LOG.map(t=>{
       const m = MEMBER_MAP[t.member];
@@ -1014,12 +1138,16 @@ function renderTrades(){
             return gi ? `<img src="${gi.img}" title="${MEMBER_MAP[gi.member].name} ${gi.label}">` : '';
           }).join('')}</div>`
         : (t.give ? t.give : '<span style="color:var(--muted);font-size:11.5px;">-</span>');
+      const receivePool = t.receivePool || 'split';
+      const givePool = t.givePool || 'split';
       return `<tr>
         <td>${it ? `<img src="${it.img}">` : ''}</td>
         <td>${t.date||'-'}</td>
         <td><span class="dot" style="width:7px;height:7px;background:${m?m.color:'#999'};display:inline-block;margin-right:5px;"></span>${m?m.name:'-'}</td>
         <td>${it ? it.label : '-'}</td>
+        <td>${it ? `<span class="pool-tag ${receivePool}">${poolLabel(receivePool)}</span>` : '-'}</td>
         <td>${giveHtml}</td>
+        <td>${giveItems.length ? `<span class="pool-tag ${givePool}">${poolLabel(givePool)}</span>` : '-'}</td>
         <td>${t.partner||'-'}</td>
         <td>
           <select data-tid="${t.id}" data-tf="status" class="statusSelect">
@@ -1044,6 +1172,35 @@ function renderTrades(){
       TRADE_LOG = TRADE_LOG.filter(x=>x.id!==btn.dataset.del);
       scheduleSave();
       renderTrades();
+    });
+  });
+}
+function renderPoolMoveLog(){
+  const root = document.getElementById('poolMoveTableRoot');
+  if(!root) return;
+  if(POOL_MOVE_LOG.length===0){
+    root.innerHTML = '<div class="empty-state">아직 전환 내역이 없어요.</div>';
+    return;
+  }
+  root.innerHTML = `<table class="datatable"><thead><tr>
+    <th></th><th>날짜</th><th>구성품</th><th>전환</th><th></th>
+  </tr></thead><tbody>
+    ${POOL_MOVE_LOG.map(mv=>{
+      const it = ITEMS.find(i=>i.id===mv.itemId);
+      return `<tr>
+        <td>${it ? `<img src="${it.img}">` : ''}</td>
+        <td>${mv.date||'-'}</td>
+        <td>${it ? `${MEMBER_MAP[it.member].name} · ${it.label}` : '-'}</td>
+        <td><span class="pool-tag ${mv.from}">${poolLabel(mv.from)}</span> → <span class="pool-tag ${mv.to}">${poolLabel(mv.to)}</span></td>
+        <td><button class="btn small danger" data-delmove="${mv.id}">삭제</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+  root.querySelectorAll('[data-delmove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      POOL_MOVE_LOG = POOL_MOVE_LOG.filter(x=>x.id!==btn.dataset.delmove);
+      scheduleSave();
+      renderPoolMoveLog();
     });
   });
 }
@@ -1396,7 +1553,7 @@ document.getElementById('btnCreateInvite').addEventListener('click', async ()=>{
 // ---------- serialize / apply ----------
 function serializeState(){
   return {
-    version:1,
+    version:2,
     exportedAt: new Date().toISOString(),
     itemState: ITEM_STATE,
     tradeLog: TRADE_LOG,
@@ -1405,12 +1562,14 @@ function serializeState(){
     shipSeq: shipSeq,
     fullship: FULLSHIP,
     fullshipSeq: fullshipSeq,
+    poolMoveLog: POOL_MOVE_LOG,
+    poolMoveSeq: poolMoveSeq,
   };
 }
 function applyImportedData(data){
   if(!data || typeof data !== 'object') return;
   if(data.itemState){
-    Object.keys(data.itemState).forEach(id=>{ if(ITEM_STATE[id]) ITEM_STATE[id] = Object.assign(defaultItemState(), data.itemState[id]); });
+    Object.keys(data.itemState).forEach(id=>{ if(ITEM_STATE[id]) ITEM_STATE[id] = migrateItemStateRecord(data.itemState[id]); });
   }
   if(Array.isArray(data.tradeLog)) TRADE_LOG = data.tradeLog;
   if(data.tradeSeq) tradeSeq = data.tradeSeq;
@@ -1418,6 +1577,8 @@ function applyImportedData(data){
   if(data.shipSeq) shipSeq = data.shipSeq;
   if(Array.isArray(data.fullship)) FULLSHIP = data.fullship;
   if(data.fullshipSeq) fullshipSeq = data.fullshipSeq;
+  if(Array.isArray(data.poolMoveLog)) POOL_MOVE_LOG = data.poolMoveLog;
+  if(data.poolMoveSeq) poolMoveSeq = data.poolMoveSeq;
 }
 
 // ---------- auth ----------
@@ -1504,6 +1665,7 @@ async function startApp(){
   hideAuthOverlay();
   updateUserBadge();
   setupAdminTab();
+  updatePoolTabVisibility();
   await refreshShareToken();
   await loadStateFromServer();
   renderAll();
@@ -1735,6 +1897,7 @@ document.getElementById('btnReset').addEventListener('click', ()=>{
   TRADE_LOG = []; tradeSeq = 1;
   RECIPIENTS = []; shipSeq = 1; shipBasket = [];
   FULLSHIP = []; fullshipSeq = 1; ffBasketMembers = new Set();
+  POOL_MOVE_LOG = []; poolMoveSeq = 1;
   scheduleSave();
   renderAll(true);
   toast('초기화했어요');
