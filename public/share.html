@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRAY KIDS THIS&THAT 구성품 트래커 — 공개 보기</title>
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f9f9f7;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --good:#0ca30c; --good-text:#006300; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+    --card-shadow: 0 1px 2px rgba(11,11,11,0.06), 0 1px 1px rgba(11,11,11,0.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --surface-1:#1a1a19; --page:#0d0d0d;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+      --good:#0ca30c; --good-text:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767;
+      --card-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --good:#0ca30c; --good-text:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#e66767;
+    --card-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:var(--page); color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  .app{max-width:1320px; margin:0 auto; padding:20px 20px 80px;}
+
+  .topbar{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+    flex-wrap:wrap; margin-bottom:18px;
+  }
+  .topbar h1{font-size:20px; margin:0 0 4px; letter-spacing:-0.01em;}
+  .topbar .sub{color:var(--text-secondary); font-size:13px;}
+  .credit{font-size:11px; color:var(--muted); margin-top:3px;}
+  .credit a{color:inherit;}
+  .readonly-badge{
+    font-size:11.5px; font-weight:700; color:var(--text-secondary); background:var(--surface-1);
+    border:1px solid var(--border); border-radius:99px; padding:4px 11px; white-space:nowrap;
+  }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--surface-1);
+    color:var(--text-primary); padding:7px 12px; border-radius:8px; font-size:13px;
+    cursor:pointer; font-weight:500; transition:background .12s, transform .06s;
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+  }
+  .btn:hover{background:var(--grid);}
+  .btn:active{transform:scale(0.98);}
+  .btn.small{padding:4px 9px; font-size:12px; border-radius:6px;}
+
+  .tabs{display:flex; gap:4px; border-bottom:1px solid var(--grid); margin-bottom:14px; overflow-x:auto;}
+  .tab{
+    padding:10px 14px; font-size:13.5px; font-weight:600; color:var(--text-secondary);
+    cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+  }
+  .tab.active{color:var(--text-primary); border-bottom-color:var(--text-primary);}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .exportbar{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:16px;
+    background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:8px 10px;
+  }
+  .exportbar .gl{font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+
+  .stat-row{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:22px;}
+  @media (max-width:900px){.stat-row{grid-template-columns:repeat(2,1fr);}}
+  .stat-tile{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; box-shadow:var(--card-shadow);
+  }
+  .stat-tile .label{font-size:11.5px; color:var(--text-secondary); font-weight:600; text-transform:uppercase; letter-spacing:.03em;}
+  .stat-tile .value{font-size:26px; font-weight:700; margin-top:4px; letter-spacing:-0.02em;}
+  .stat-tile .value small{font-size:14px; color:var(--muted); font-weight:500;}
+
+  h2.section-title{font-size:15px; margin:28px 0 12px; font-weight:700;}
+  h2.section-title:first-child{margin-top:0;}
+
+  .member-split{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:8px;}
+  @media (max-width:800px){.member-split{grid-template-columns:1fr;}}
+  .member-col-title{font-size:12.5px; font-weight:700; color:var(--text-secondary); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .member-row{
+    display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px;
+    background:var(--surface-1); border:1px solid var(--border); margin-bottom:6px; cursor:pointer;
+  }
+  .member-row:hover{background:var(--grid);}
+  .dot{width:10px; height:10px; border-radius:50%; flex:none;}
+  .member-row .name{font-size:13px; font-weight:600; min-width:96px;}
+  .member-row .sub{font-size:11px; color:var(--muted); min-width:70px;}
+  .progress-track{flex:1; height:7px; background:var(--grid); border-radius:99px; overflow:hidden; min-width:60px;}
+  .progress-fill{height:100%; border-radius:99px;}
+  .member-row .pct{font-size:12px; color:var(--text-secondary); font-weight:600; width:54px; text-align:right;}
+  .badge{font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap;}
+  .badge.done{background:rgba(12,163,12,0.14); color:var(--good-text);}
+  .badge.pending{background:rgba(250,178,25,0.18); color:#a06600;}
+  @media (prefers-color-scheme: dark){ .badge.pending{color:#fab219;} }
+  :root[data-theme="dark"] .badge.pending{color:#fab219;}
+
+  .version-grid{display:grid; grid-template-columns:1fr; gap:6px;}
+  .version-row{display:flex; align-items:center; gap:10px; font-size:13px;}
+  .version-row .vname{width:110px; font-weight:600; flex:none;}
+  .version-row .vcount{width:64px; text-align:right; color:var(--text-secondary); font-size:12px; flex:none;}
+
+  .filterbar{
+    display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:16px;
+    background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+  }
+  .chipgroup{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+  .chipgroup .gl{font-size:11px; font-weight:700; color:var(--muted); margin-right:4px; text-transform:uppercase; letter-spacing:.03em;}
+  .chip{
+    padding:4px 10px; border-radius:99px; font-size:12px; font-weight:600; cursor:pointer;
+    border:1px solid var(--border); background:var(--page); color:var(--text-secondary);
+  }
+  .chip.on{background:var(--text-primary); color:var(--page); border-color:transparent;}
+  .searchbox{
+    flex:1; min-width:140px; padding:6px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--page); color:var(--text-primary); font-size:13px;
+  }
+
+  .board{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; align-items:start;}
+  @media (max-width:1100px){.board{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:600px){.board{grid-template-columns:1fr;}}
+  .board-col{background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:10px; min-height:120px;}
+  .board-col-head{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700; padding:2px 4px 10px; border-bottom:1px solid var(--grid); margin-bottom:8px;}
+  .board-col-head .n{color:var(--muted); font-weight:600;}
+  .col-need .board-col-head{color:var(--text-secondary);}
+  .col-trading .board-col-head{color:#a06600;}
+  :root[data-theme="dark"] .col-trading .board-col-head{color:#fab219;}
+  .col-owned .board-col-head{color:var(--good-text);}
+  .cards{display:flex; flex-direction:column; gap:8px; max-height:1400px; overflow:visible;}
+
+  .card{
+    display:flex; gap:9px; background:var(--page); border:1px solid var(--border);
+    border-radius:10px; padding:8px; align-items:flex-start;
+  }
+  .card img{width:52px; height:64px; object-fit:cover; border-radius:6px; flex:none; background:var(--grid);}
+  .card-body{flex:1; min-width:0;}
+  .card-top{display:flex; align-items:center; gap:6px; margin-bottom:2px;}
+  .card .mname{font-size:11px; font-weight:700;}
+  .card .ilabel{font-size:12px; font-weight:600; line-height:1.25; margin-bottom:5px;}
+  .card .vtag{font-size:9.5px; color:var(--muted); font-weight:600; border:1px solid var(--grid); border-radius:4px; padding:0 4px;}
+  .card-actions{display:flex; flex-wrap:wrap; gap:4px; align-items:center;}
+  .round-badge{font-size:10.5px; font-weight:700; background:rgba(250,178,25,0.18); color:#a06600; padding:1px 7px; border-radius:99px;}
+  :root[data-theme="dark"] .round-badge{color:#fab219;}
+  .status-tag{font-size:10.5px; font-weight:700; padding:1px 8px; border-radius:99px; background:var(--grid); color:var(--text-secondary);}
+  .empty-col{color:var(--muted); font-size:12px; text-align:center; padding:16px 4px;}
+
+  .member-header{
+    display:flex; align-items:center; gap:14px; margin:34px 0 14px; padding-bottom:10px; border-bottom:1px solid var(--grid);
+  }
+  .member-header:first-child{margin-top:4px;}
+  .avatar-ring{
+    width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:14px; color:#fff; flex:none;
+  }
+  .member-header .mh-name{font-size:16px; font-weight:800;}
+  .member-header .mh-sub{font-size:12px; color:var(--muted);}
+  .member-header .mh-track{flex:1; max-width:220px;}
+  .gallery-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(128px,1fr)); gap:10px; margin-bottom:6px;}
+  .gcard{background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:7px; text-align:center;}
+  .gcard img{width:100%; aspect-ratio:0.82; object-fit:cover; border-radius:7px; cursor:pointer; background:var(--grid);}
+  .gcard .gl{font-size:11px; font-weight:600; margin:6px 0 4px; line-height:1.2; min-height:26px;}
+  .gcard .gstatus{font-size:10px; font-weight:700;}
+
+  .lightbox{position:fixed; inset:0; background:rgba(0,0,0,0.72); display:none; align-items:center; justify-content:center; z-index:50; padding:24px;}
+  .lightbox.show{display:flex;}
+  .lightbox img{max-width:min(560px,92vw); max-height:88vh; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,0.5);}
+  .lightbox-close{position:absolute; top:18px; right:22px; color:#fff; font-size:26px; cursor:pointer; background:none; border:none;}
+
+  table.datatable{width:100%; border-collapse:collapse; font-size:13px;}
+  table.datatable th{text-align:left; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; padding:6px 8px; border-bottom:1px solid var(--grid);}
+  table.datatable td{padding:8px; border-bottom:1px solid var(--grid); vertical-align:middle;}
+  table.datatable img{width:38px; height:46px; object-fit:cover; border-radius:5px;}
+  .empty-state{color:var(--muted); font-size:13px; padding:30px 10px; text-align:center; background:var(--surface-1); border:1px dashed var(--border); border-radius:10px;}
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--text-primary); color:var(--page); padding:9px 18px; border-radius:99px;
+    font-size:13px; font-weight:600; box-shadow:0 6px 24px rgba(0,0,0,0.25); z-index:80;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+
+  .footnote{font-size:11.5px; color:var(--muted); margin-top:26px; line-height:1.6;}
+
+  .invalidBox{
+    max-width:420px; margin:80px auto; text-align:center; background:var(--surface-1);
+    border:1px solid var(--border); border-radius:14px; padding:32px 24px; box-shadow:var(--card-shadow);
+  }
+  .invalidBox h2{font-size:17px; margin:0 0 8px;}
+  .invalidBox p{font-size:13px; color:var(--text-secondary); line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="app" id="app" style="display:none;">
+
+  <div class="topbar">
+    <div>
+      <h1 id="pageTitle">STRAY KIDS · THIS&amp;THAT 앨범 구성품 트래커</h1>
+      <div class="sub">8멤버 × 21종 = <b id="totalCountLabel">168</b>개 구성품 · 공개 보기 (읽기 전용)</div>
+      <div class="credit">제작자: BBOK-LIMONY (<a href="https://twitter.com/bboklimony915" target="_blank" rel="noopener">@bboklimony915</a>)</div>
+    </div>
+    <div>
+      <span class="readonly-badge">🔒 읽기 전용 공개 보기</span>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="overview">개요</div>
+    <div class="tab" data-tab="board">구성품 보드</div>
+    <div class="tab" data-tab="gallery">멤버별 갤러리</div>
+    <div class="tab" data-tab="surplus">여유분 카드</div>
+  </div>
+
+  <div class="exportbar" id="exportbar">
+    <span class="gl">내보내기</span>
+    <button class="btn small" id="btnExportImage" type="button">🖼️ 현재 화면 이미지로</button>
+    <button class="btn small" id="btnExportAllZip" type="button">🗂️ 전체 페이지 이미지(ZIP)</button>
+    <button class="btn small" id="btnExportPdf" type="button">📄 전체 페이지 PDF</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="panel active" id="panel-overview">
+    <div class="stat-row" id="statRow"></div>
+
+    <h2 class="section-title" id="memberSplitTitle">멤버별 진행 현황</h2>
+    <div class="chipgroup" id="overviewVersionChips" style="margin-bottom:12px;"><span class="gl">기준</span></div>
+    <div class="member-split">
+      <div>
+        <div class="member-col-title">🔄 교환이 필요한 멤버</div>
+        <div id="memberPending"></div>
+      </div>
+      <div>
+        <div class="member-col-title">✅ 완성된 멤버</div>
+        <div id="memberDone"></div>
+      </div>
+    </div>
+
+    <h2 class="section-title">앨범 버전별 현황</h2>
+    <div class="version-grid" id="versionGrid"></div>
+  </div>
+
+  <!-- BOARD -->
+  <div class="panel" id="panel-board">
+    <div class="filterbar">
+      <div class="chipgroup" id="memberChips"><span class="gl">멤버</span></div>
+      <div class="chipgroup">
+        <button class="btn small" id="memberSelectAll" type="button">전체 선택</button>
+        <button class="btn small" id="memberSelectNone" type="button">전체 해제</button>
+      </div>
+      <div class="chipgroup" id="versionChips"><span class="gl">버전</span></div>
+      <input class="searchbox" id="searchBox" placeholder="구성품 이름 검색...">
+    </div>
+    <div class="board" id="board"></div>
+  </div>
+
+  <!-- GALLERY -->
+  <div class="panel" id="panel-gallery">
+    <div class="filterbar">
+      <div class="chipgroup" id="galleryMemberChips"><span class="gl">멤버</span></div>
+      <div class="chipgroup">
+        <button class="btn small" id="gallerySelectAll" type="button">전체 선택</button>
+        <button class="btn small" id="gallerySelectNone" type="button">전체 해제</button>
+      </div>
+      <div class="chipgroup">
+        <button class="btn small" id="galleryExpandAll" type="button">전체 펼치기</button>
+        <button class="btn small" id="galleryCollapseAll" type="button">전체 접기</button>
+      </div>
+    </div>
+    <div id="galleryRoot"></div>
+  </div>
+
+  <!-- SURPLUS -->
+  <div class="panel" id="panel-surplus">
+    <h2 class="section-title" style="margin-top:0;">교환 가능한 여유분 카드</h2>
+    <div class="sub" style="color:var(--text-secondary); font-size:12.5px; margin-bottom:14px;">
+      보유 수량이 2개 이상인 구성품이에요. 완성분(1개)을 제외한 나머지를 교환에 쓸 수 있어요.
+    </div>
+    <div id="surplusRoot"></div>
+  </div>
+
+  <div class="footnote" id="footnote"></div>
+</div>
+
+<div class="invalidBox" id="invalidBox" style="display:none;">
+  <h2>링크를 열 수 없어요</h2>
+  <p id="invalidMsg">이 공유 링크가 유효하지 않거나, 소유자가 링크를 재발급해서 더 이상 작동하지 않아요.</p>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">✕</button>
+  <img id="lightboxImg" src="">
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script src="vendor/html2canvas.min.js"></script>
+<script src="vendor/jspdf.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script>
+const VERSIONS = ["TRUCK","FANS","LP","&","THIS","THAT","THIS&THAT"];
+const MEMBER_MAP = {}; MEMBERS.forEach(m=>MEMBER_MAP[m.code]=m);
+
+function defaultItemState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+let ITEM_STATE = {};
+ITEMS.forEach(it=>{ ITEM_STATE[it.id] = defaultItemState(); });
+
+let filters = { members: new Set(MEMBERS.map(m=>m.code)), versions: new Set(VERSIONS), search:'' };
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function isOwned(st){ return st.status==='owned_original' || st.status==='owned_traded'; }
+function itemState(id){ return ITEM_STATE[id]; }
+
+function computeMemberStats(code, version){
+  const items = (version && version!=='ALL')
+    ? ITEMS.filter(i=>i.member===code && i.version===version)
+    : ITEMS.filter(i=>i.member===code);
+  const owned = items.filter(i=>isOwned(itemState(i.id))).length;
+  return {owned, total: items.length, pct: Math.round(owned/items.length*100)};
+}
+function computeVersionStats(version){
+  const items = ITEMS.filter(i=>i.version===version);
+  const owned = items.filter(i=>isOwned(itemState(i.id))).length;
+  return {owned, total: items.length};
+}
+function computeGlobal(){
+  const total = ITEMS.length;
+  let owned=0, trading=0, need=0;
+  ITEMS.forEach(i=>{
+    const st = itemState(i.id);
+    if(isOwned(st)) owned++;
+    else if(st.status==='trading') trading++;
+    else need++;
+  });
+  return {total, owned, trading, need};
+}
+
+document.getElementById('tabs').addEventListener('click', (e)=>{
+  const tab = e.target.closest('.tab'); if(!tab) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+  if(tab.dataset.tab==='board') renderBoard();
+  if(tab.dataset.tab==='gallery') renderGallery();
+  if(tab.dataset.tab==='surplus') renderSurplus();
+});
+
+let overviewVersion = 'ALL';
+function renderOverviewVersionChips(){
+  const el = document.getElementById('overviewVersionChips');
+  const opts = ['ALL', ...VERSIONS.filter(v=>v!=='THIS&THAT')];
+  el.innerHTML = '<span class="gl">기준</span>' + opts.map(v=>
+    `<span class="chip ${overviewVersion===v?'on':''}" data-ov="${v}">${v==='ALL'?'전체':v}</span>`
+  ).join('');
+  el.querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click', ()=>{ overviewVersion = c.dataset.ov; renderOverview(); });
+  });
+}
+function renderOverview(){
+  renderOverviewVersionChips();
+  const g = computeGlobal();
+  const versionLabel = overviewVersion==='ALL' ? null : overviewVersion;
+  const doneMembers = MEMBERS.filter(m=>{ const s=computeMemberStats(m.code, overviewVersion); return s.owned===s.total; }).length;
+  document.getElementById('memberSplitTitle').textContent = versionLabel
+    ? `멤버별 진행 현황 — ${versionLabel} 버전 기준`
+    : '멤버별 진행 현황 (전체 구성품 기준)';
+  document.getElementById('statRow').innerHTML = `
+    <div class="stat-tile"><div class="label">전체 구성품</div><div class="value">${g.total}</div></div>
+    <div class="stat-tile"><div class="label">보유</div><div class="value" style="color:var(--good-text)">${g.owned} <small>/ ${g.total}</small></div></div>
+    <div class="stat-tile"><div class="label">교환중</div><div class="value" style="color:#a06600">${g.trading}</div></div>
+    <div class="stat-tile"><div class="label">교환 필요</div><div class="value">${g.need}</div></div>
+    <div class="stat-tile"><div class="label">완성된 멤버${versionLabel?` (${versionLabel})`:''}</div><div class="value">${doneMembers} <small>/ ${MEMBERS.length}</small></div></div>
+  `;
+
+  const pendingHtml = [], doneHtml = [];
+  MEMBERS.forEach(m=>{
+    const s = computeMemberStats(m.code, overviewVersion);
+    const row = `
+      <div class="member-row" data-jump="${m.code}">
+        <span class="dot" style="background:${m.color}"></span>
+        <span class="name">${m.name}</span>
+        <span class="sub">${m.sub}</span>
+        <span class="progress-track"><span class="progress-fill" style="width:${s.pct}%; background:${m.color}"></span></span>
+        <span class="pct">${s.owned}/${s.total}</span>
+        <span class="badge ${s.owned===s.total?'done':'pending'}">${s.owned===s.total?'완성':'잔여 '+(s.total-s.owned)}</span>
+      </div>`;
+    if(s.owned===s.total) doneHtml.push(row); else pendingHtml.push(row);
+  });
+  document.getElementById('memberPending').innerHTML = pendingHtml.join('') || '<div class="empty-state">모든 멤버가 완성되었어요! 🎉</div>';
+  document.getElementById('memberDone').innerHTML = doneHtml.join('') || '<div class="empty-state">아직 완성된 멤버가 없어요.</div>';
+
+  document.getElementById('versionGrid').innerHTML = VERSIONS.map(v=>{
+    const s = computeVersionStats(v);
+    const pct = Math.round(s.owned/s.total*100);
+    return `<div class="version-row">
+      <span class="vname">${v}</span>
+      <span class="progress-track"><span class="progress-fill" style="width:${pct}%; background:var(--text-primary)"></span></span>
+      <span class="vcount">${s.owned}/${s.total}</span>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-jump]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const code = el.dataset.jump;
+      galleryMembers.add(code);
+      galleryExpanded.add(code);
+      document.querySelector('.tab[data-tab="gallery"]').click();
+      setTimeout(()=>{
+        const target = document.getElementById('mh-'+code);
+        if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+      }, 30);
+    });
+  });
+}
+
+// read-only status badge (no edit controls, view-only)
+function statusBadgeHtml(it, st){
+  if(st.status==='need') return `<span class="status-tag">교환 필요</span>`;
+  if(st.status==='trading') return `<span class="round-badge">${st.round}차</span> <span class="status-tag">${st.stage}</span>`;
+  const label = st.status==='owned_original' ? '원래 보유' : '교환 완료';
+  return `<span class="status-tag" style="background:rgba(12,163,12,0.14); color:var(--good-text);">${label}${st.qty>1?` · 보유 ${st.qty}개`:''}</span>`;
+}
+
+function renderMemberChips(){
+  const el = document.getElementById('memberChips');
+  el.innerHTML = '<span class="gl">멤버</span>' + MEMBERS.map(m=>
+    `<span class="chip ${filters.members.has(m.code)?'on':''}" data-m="${m.code}" style="${filters.members.has(m.code)?`background:${m.color};border-color:${m.color}`:''}">${m.name}</span>`
+  ).join('');
+  el.querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      const code = c.dataset.m;
+      if(filters.members.has(code)) filters.members.delete(code); else filters.members.add(code);
+      renderBoard();
+    });
+  });
+}
+function renderVersionChips(){
+  const el = document.getElementById('versionChips');
+  el.innerHTML = '<span class="gl">버전</span>' + VERSIONS.map(v=>
+    `<span class="chip ${filters.versions.has(v)?'on':''}" data-v="${v}">${v}</span>`
+  ).join('');
+  el.querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      const v = c.dataset.v;
+      if(filters.versions.has(v)) filters.versions.delete(v); else filters.versions.add(v);
+      renderBoard();
+    });
+  });
+}
+function filteredItems(){
+  const q = filters.search.trim().toLowerCase();
+  return ITEMS.filter(it=>
+    filters.members.has(it.member) &&
+    filters.versions.has(it.version) &&
+    (q==='' || it.label.toLowerCase().includes(q) || MEMBER_MAP[it.member].name.toLowerCase().includes(q))
+  );
+}
+function cardHtml(it){
+  const st = itemState(it.id);
+  const m = MEMBER_MAP[it.member];
+  return `<div class="card">
+    <img src="${it.img}" loading="lazy">
+    <div class="card-body">
+      <div class="card-top"><span class="dot" style="width:7px;height:7px;background:${m.color}"></span><span class="mname">${m.name}</span></div>
+      <div class="ilabel">${it.label} <span class="vtag">${it.version}</span></div>
+      <div class="card-actions">${statusBadgeHtml(it, st)}</div>
+    </div>
+  </div>`;
+}
+function renderBoard(){
+  renderMemberChips(); renderVersionChips();
+  const items = filteredItems();
+  const groups = {need:[], trading:[], owned_original:[], owned_traded:[]};
+  items.forEach(it=>groups[itemState(it.id).status].push(it));
+
+  const board = document.getElementById('board');
+  board.innerHTML = `
+    <div class="board-col col-need">
+      <div class="board-col-head">교환 필요 <span class="n">${groups.need.length}</span></div>
+      <div class="cards">${groups.need.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
+    </div>
+    <div class="board-col col-trading">
+      <div class="board-col-head">교환중 <span class="n">${groups.trading.length}</span></div>
+      <div class="cards">${groups.trading.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
+    </div>
+    <div class="board-col col-owned">
+      <div class="board-col-head">원래 보유 <span class="n">${groups.owned_original.length}</span></div>
+      <div class="cards">${groups.owned_original.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
+    </div>
+    <div class="board-col col-owned">
+      <div class="board-col-head">교환 완료 <span class="n">${groups.owned_traded.length}</span></div>
+      <div class="cards">${groups.owned_traded.map(cardHtml).join('') || '<div class="empty-col">해당 없음</div>'}</div>
+    </div>
+  `;
+}
+document.getElementById('searchBox').addEventListener('input', (e)=>{ filters.search = e.target.value; renderBoard(); });
+document.getElementById('memberSelectAll').addEventListener('click', ()=>{ filters.members = new Set(MEMBERS.map(m=>m.code)); renderBoard(); });
+document.getElementById('memberSelectNone').addEventListener('click', ()=>{ filters.members = new Set(); renderBoard(); });
+
+let galleryMembers = new Set(MEMBERS.map(m=>m.code));
+let galleryExpanded = new Set(MEMBERS.map(m=>m.code));
+
+function renderGalleryChips(){
+  const el = document.getElementById('galleryMemberChips');
+  el.innerHTML = '<span class="gl">멤버</span>' + MEMBERS.map(m=>
+    `<span class="chip ${galleryMembers.has(m.code)?'on':''}" data-gm="${m.code}" style="${galleryMembers.has(m.code)?`background:${m.color};border-color:${m.color}`:''}">${m.name}</span>`
+  ).join('');
+  el.querySelectorAll('.chip').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      const code = c.dataset.gm;
+      if(galleryMembers.has(code)) galleryMembers.delete(code); else galleryMembers.add(code);
+      renderGallery();
+    });
+  });
+}
+function renderGallery(){
+  renderGalleryChips();
+  const root = document.getElementById('galleryRoot');
+  const membersToShow = MEMBERS.filter(m=>galleryMembers.has(m.code));
+  if(membersToShow.length===0){
+    root.innerHTML = '<div class="empty-state">표시할 멤버를 선택해주세요.</div>';
+    return;
+  }
+  root.innerHTML = membersToShow.map(m=>{
+    const s = computeMemberStats(m.code);
+    const items = ITEMS.filter(i=>i.member===m.code);
+    const expanded = galleryExpanded.has(m.code);
+    return `
+    <div class="member-header" id="mh-${m.code}">
+      <div class="avatar-ring" style="background:${m.color}">${m.name.slice(0,1)}</div>
+      <div>
+        <div class="mh-name">${m.name} <span class="mh-sub">${m.sub}</span></div>
+        <div class="mh-sub">${s.owned} / ${s.total} 완료</div>
+      </div>
+      <div class="mh-track"><div class="progress-track"><div class="progress-fill" style="width:${s.pct}%; background:${m.color}"></div></div></div>
+      <button class="btn small" data-sheet="${m.code}">전체 시트 보기</button>
+      <button class="btn small" data-collapse="${m.code}">${expanded ? '▾ 접기' : '▸ 펼치기'}</button>
+    </div>
+    <div class="gallery-grid" id="grid-${m.code}" style="${expanded?'':'display:none;'}">
+      ${items.map(it=>{
+        const st = itemState(it.id);
+        const label = isOwned(st) ? (st.status==='owned_original'?'원래 보유':'교환 완료') : (st.status==='trading'?`교환중 (${st.round}차)`:'교환 필요');
+        const color = isOwned(st) ? 'var(--good-text)' : (st.status==='trading' ? '#a06600' : 'var(--muted)');
+        return `<div class="gcard">
+          <img src="${it.img}" data-lightbox="${it.img}" loading="lazy">
+          <div class="gl">${it.label}</div>
+          <div class="gstatus" style="color:${color}">${label}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+
+  root.querySelectorAll('[data-sheet]').forEach(b=>{
+    b.addEventListener('click', ()=>openLightbox(MEMBER_MAP[b.dataset.sheet].sheet));
+  });
+  root.querySelectorAll('[data-collapse]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const code = b.dataset.collapse;
+      if(galleryExpanded.has(code)) galleryExpanded.delete(code); else galleryExpanded.add(code);
+      renderGallery();
+    });
+  });
+  root.querySelectorAll('[data-lightbox]').forEach(img=>{
+    img.addEventListener('click', ()=>openLightbox(img.dataset.lightbox));
+  });
+}
+document.getElementById('gallerySelectAll').addEventListener('click', ()=>{ galleryMembers = new Set(MEMBERS.map(m=>m.code)); renderGallery(); });
+document.getElementById('gallerySelectNone').addEventListener('click', ()=>{ galleryMembers = new Set(); renderGallery(); });
+document.getElementById('galleryExpandAll').addEventListener('click', ()=>{ galleryExpanded = new Set(MEMBERS.map(m=>m.code)); renderGallery(); });
+document.getElementById('galleryCollapseAll').addEventListener('click', ()=>{ galleryExpanded = new Set(); renderGallery(); });
+function openLightbox(src){
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+document.getElementById('lightboxClose').addEventListener('click', ()=>document.getElementById('lightbox').classList.remove('show'));
+document.getElementById('lightbox').addEventListener('click', (e)=>{ if(e.target.id==='lightbox') e.currentTarget.classList.remove('show'); });
+
+function renderSurplus(){
+  const rows = [];
+  ITEMS.forEach(it=>{
+    const st = itemState(it.id);
+    if(isOwned(st) && st.qty>1){
+      rows.push({it, st, surplus: st.qty-1});
+    }
+  });
+  const root = document.getElementById('surplusRoot');
+  if(rows.length===0){
+    root.innerHTML = '<div class="empty-state">여유분(중복 보유) 카드가 없어요.</div>';
+    return;
+  }
+  root.innerHTML = `<table class="datatable"><thead><tr>
+    <th></th><th>멤버</th><th>구성품</th><th>버전</th><th>보유수량</th><th>교환 가능 여유분</th>
+  </tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><img src="${r.it.img}"></td>
+      <td>${MEMBER_MAP[r.it.member].name}</td>
+      <td>${r.it.label}</td>
+      <td>${r.it.version}</td>
+      <td>${r.st.qty}</td>
+      <td><b style="color:var(--good-text)">${r.surplus}개</b></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderAll(){
+  renderOverview();
+  const activeTab = document.querySelector('.tab.active').dataset.tab;
+  if(activeTab==='board') renderBoard();
+  if(activeTab==='gallery') renderGallery();
+  if(activeTab==='surplus') renderSurplus();
+}
+
+// ---------- image / PDF export ----------
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function getTabList(){
+  return [...document.querySelectorAll('.tab')].map(t=>({key:t.dataset.tab, label:t.textContent.trim()}));
+}
+async function captureActivePanel(){
+  const panel = document.querySelector('.panel.active');
+  return await html2canvas(panel, {
+    backgroundColor: getComputedStyle(document.body).backgroundColor,
+    useCORS: true,
+  });
+}
+function downloadCanvas(canvas, filename){
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  document.body.appendChild(link); link.click(); link.remove();
+}
+async function captureAllTabsAsCanvases(){
+  const tabs = getTabList();
+  const originalActiveKey = document.querySelector('.tab.active').dataset.tab;
+  const canvases = [];
+  for(const t of tabs){
+    document.querySelector(`.tab[data-tab="${t.key}"]`).click();
+    await new Promise(r=>setTimeout(r, 180));
+    const canvas = await captureActivePanel();
+    canvases.push({key:t.key, label:t.label, canvas});
+  }
+  document.querySelector(`.tab[data-tab="${originalActiveKey}"]`).click();
+  return canvases;
+}
+document.getElementById('btnExportImage').addEventListener('click', async ()=>{
+  toast('이미지를 만드는 중…');
+  const canvas = await captureActivePanel();
+  const activeTabLabel = document.querySelector('.tab.active').textContent.trim();
+  downloadCanvas(canvas, `skz-tracker-${activeTabLabel}-${todayStr()}.png`);
+  toast('이미지로 저장했어요');
+});
+document.getElementById('btnExportAllZip').addEventListener('click', async ()=>{
+  toast('전체 페이지를 이미지로 만드는 중… (잠시 기다려주세요)');
+  const canvases = await captureAllTabsAsCanvases();
+  const zip = new JSZip();
+  canvases.forEach((c, i)=>{
+    const dataUrl = c.canvas.toDataURL('image/png');
+    const base64 = dataUrl.split(',')[1];
+    zip.file(`${String(i+1).padStart(2,'0')}-${c.label}.png`, base64, {base64:true});
+  });
+  const blob = await zip.generateAsync({type:'blob'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `skz-tracker-전체페이지-${todayStr()}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('전체 페이지를 ZIP으로 저장했어요');
+});
+document.getElementById('btnExportPdf').addEventListener('click', async ()=>{
+  toast('PDF를 만드는 중… (잠시 기다려주세요)');
+  const canvases = await captureAllTabsAsCanvases();
+  const { jsPDF } = window.jspdf;
+  let pdf = null;
+  canvases.forEach((c)=>{
+    const imgData = c.canvas.toDataURL('image/jpeg', 0.92);
+    const w = c.canvas.width, h = c.canvas.height;
+    const orientation = w > h ? 'l' : 'p';
+    if(!pdf){
+      pdf = new jsPDF({orientation, unit:'px', format:[w, h]});
+    }else{
+      pdf.addPage([w, h], orientation);
+    }
+    pdf.addImage(imgData, 'JPEG', 0, 0, w, h);
+  });
+  pdf.save(`skz-tracker-전체페이지-${todayStr()}.pdf`);
+  toast('전체 페이지를 PDF로 저장했어요');
+});
+
+// ---------- init ----------
+(async function init(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+  if(!token){
+    document.getElementById('invalidMsg').textContent = '링크에 공유 코드가 없어요. 소유자에게 정확한 링크를 다시 받아주세요.';
+    document.getElementById('invalidBox').style.display = 'block';
+    return;
+  }
+  try{
+    const res = await fetch(`/api/public-state?token=${encodeURIComponent(token)}`, {cache:'no-store'});
+    const data = await res.json();
+    if(!res.ok){
+      document.getElementById('invalidMsg').textContent = data.message || '이 링크를 열 수 없어요.';
+      document.getElementById('invalidBox').style.display = 'block';
+      return;
+    }
+    if(data.itemState){
+      Object.keys(data.itemState).forEach(id=>{ if(ITEM_STATE[id]) ITEM_STATE[id] = Object.assign(defaultItemState(), data.itemState[id]); });
+    }
+    document.getElementById('pageTitle').textContent = `${data.nickname}님의 STRAY KIDS · THIS&THAT 컬렉션`;
+    document.getElementById('footnote').innerHTML =
+      `이미지 출처: 트위터 @jolistay 님이 정리한 THIS&amp;THAT 앨범 구성품 안내 이미지에서 각 구성품을 잘라 표시했어요 (개인 소장/교환 목적의 참고용 정리입니다).<br>
+       이 페이지는 소유자가 공유한 읽기 전용 보기예요. 교환 관리·분철 발송 정보는 포함되어 있지 않아요.<br>
+       제작자: BBOK-LIMONY (<a href="https://twitter.com/bboklimony915" target="_blank" rel="noopener">@bboklimony915</a>)`;
+    document.getElementById('app').style.display = 'block';
+    renderAll();
+  }catch(err){
+    document.getElementById('invalidMsg').textContent = '링크를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+    document.getElementById('invalidBox').style.display = 'block';
+  }
+})();
+</script>
+</body>
+</html>
