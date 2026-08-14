@@ -86,8 +86,10 @@
   .pool-tag{font-size:10px; font-weight:700; padding:1px 7px; border-radius:99px; white-space:nowrap;}
   .pool-tag.split{background:rgba(74,111,224,0.16); color:#3a56b0;}
   .pool-tag.personal{background:rgba(194,90,158,0.16); color:#a3447e;}
+  .pool-tag.offering{background:rgba(250,178,25,0.18); color:#a06600;}
   :root[data-theme="dark"] .pool-tag.split{color:#8fa8f5;}
   :root[data-theme="dark"] .pool-tag.personal{color:#e79bcd;}
+  :root[data-theme="dark"] .pool-tag.offering{color:#fab219;}
 
   .panel{display:none;}
   .panel.active{display:block;}
@@ -584,7 +586,7 @@ const ITEMS_PER_MEMBER = Math.round(ITEMS.length / MEMBERS.length);
 // while still being sought for the split.
 const POOL_KEYS = ['split','personal'];
 function poolLabel(p){ return p==='personal' ? '개인용' : '분철용'; }
-function defaultPoolState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+function defaultPoolState(){ return {status:'need', qty:0, round:1, stage:'구하는 중', offering:false}; }
 function defaultItemState(){ return {split: defaultPoolState(), personal: defaultPoolState()}; }
 // Accepts either the new {split,personal} shape or an old flat
 // {status,qty,round,stage} record (from before pools existed) and returns a
@@ -780,14 +782,31 @@ function actionButtonsHtml(it, st){
   }
   // owned
   const otherPool = currentPool==='split' ? 'personal' : 'split';
+  const offerHtml = st.offering
+    ? `<span class="pool-tag offering">교환 제안중</span>
+       <button class="btn small" data-act="cancel-offer" data-id="${it.id}">제안 취소</button>`
+    : `<button class="btn small" data-act="start-offer" data-id="${it.id}" title="보유 수량이 1개뿐이어도 교환에 내놓을 수 있어요">🔁 교환 제안</button>`;
   return `<span class="qty-ctl">보유 ${st.qty}개
       <button data-act="qty-minus" data-id="${it.id}">−</button>
       <button data-act="qty-plus" data-id="${it.id}">+</button>
     </span>
+    ${offerHtml}
     <button class="btn small" data-act="convert-pool" data-id="${it.id}" title="이 카드 1개를 ${poolLabel(otherPool)}으로 옮겨요">↔ ${poolLabel(otherPool)}로 전환</button>
     <button class="btn small" data-act="revert-need" data-id="${it.id}">되돌리기</button>`;
 }
 
+// Cancels (marks 취소, keeps the record for the audit trail) any still-open
+// trade log entries that were auto-created from a card's "교환 제안" button,
+// for a given item+pool. Used whenever that card stops being available for
+// trade outside of the normal 완료/취소 flow in the 교환 관리 tab itself
+// (e.g. reverted to need, or converted to the other pool).
+function cancelLinkedOffers(itemId, pool){
+  TRADE_LOG.forEach(t=>{
+    if(t.linkedItemId===itemId && t.linkedPool===pool && t.status!=='완료' && t.status!=='취소'){
+      t.status = '취소';
+    }
+  });
+}
 function bindActionEvents(root){
   root.querySelectorAll('[data-act]').forEach(el=>{
     el.addEventListener('click', (e)=>{
@@ -800,13 +819,44 @@ function bindActionEvents(root){
         case 'next-round': st.round += 1; st.stage='구하는 중'; toast(`${st.round}차 교환으로 이동했어요`); break;
         case 'complete-trade': st.status='owned_traded'; st.qty=Math.max(st.qty,1); toast('교환 완료로 표시했어요 🎉'); break;
         case 'cancel-trade': st.status='need'; st.round=1; st.stage='구하는 중'; break;
-        case 'revert-need': st.status='need'; st.qty=0; break;
+        case 'revert-need': {
+          if(st.offering){ cancelLinkedOffers(id, currentPool); }
+          st.status='need'; st.qty=0; st.offering=false;
+          break;
+        }
         case 'qty-plus': st.qty += 1; break;
         case 'qty-minus': st.qty = Math.max(1, st.qty-1); break;
+        case 'start-offer': {
+          const it = ITEMS.find(i=>i.id===id);
+          st.offering = true;
+          TRADE_LOG.unshift({
+            id: 't'+(tradeSeq++),
+            date: new Date().toISOString().slice(0,10),
+            member: it ? it.member : null,
+            itemId: null,
+            receivePool: currentPool,
+            giveItems: [id],
+            givePool: currentPool,
+            partner: '',
+            status: '제안함',
+            memo: '구성품 보드에서 자동으로 등록된 교환 제안이에요.',
+            linkedItemId: id,
+            linkedPool: currentPool,
+          });
+          toast('교환 제안으로 등록했어요. "교환 관리" 탭에서 상대방 정보를 채워보세요.');
+          break;
+        }
+        case 'cancel-offer': {
+          cancelLinkedOffers(id, currentPool);
+          st.offering = false;
+          toast('교환 제안을 취소했어요');
+          break;
+        }
         case 'convert-pool': {
           if(st.qty <= 0){ toast('전환할 보유 수량이 없어요'); break; }
           const otherPool = currentPool==='split' ? 'personal' : 'split';
           const to = ITEM_STATE[id][otherPool];
+          if(st.offering){ cancelLinkedOffers(id, currentPool); st.offering = false; }
           st.qty -= 1;
           if(st.qty <= 0){ st.status='need'; st.qty=0; st.round=1; st.stage='구하는 중'; }
           if(!isOwned(to)) to.status = 'owned_original';
@@ -1162,13 +1212,26 @@ function renderTrades(){
   root.querySelectorAll('.statusSelect').forEach(sel=>{
     sel.addEventListener('change', ()=>{
       const t = TRADE_LOG.find(x=>x.id===sel.dataset.tid);
-      if(t) t.status = sel.value;
+      if(t){
+        t.status = sel.value;
+        // if this trade was auto-linked to a card's "교환 제안" flag, keep
+        // the card's tag in sync once the trade is finalized either way
+        if(t.linkedItemId && (t.status==='완료' || t.status==='취소')){
+          const rec = ITEM_STATE[t.linkedItemId];
+          if(rec && rec[t.linkedPool]) rec[t.linkedPool].offering = false;
+        }
+      }
       scheduleSave();
       renderTrades();
     });
   });
   root.querySelectorAll('[data-del]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      const t = TRADE_LOG.find(x=>x.id===btn.dataset.del);
+      if(t && t.linkedItemId){
+        const rec = ITEM_STATE[t.linkedItemId];
+        if(rec && rec[t.linkedPool]) rec[t.linkedPool].offering = false;
+      }
       TRADE_LOG = TRADE_LOG.filter(x=>x.id!==btn.dataset.del);
       scheduleSave();
       renderTrades();

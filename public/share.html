@@ -343,7 +343,7 @@ const ITEMS_PER_MEMBER = Math.round(ITEMS.length / MEMBERS.length);
 })();
 
 function poolLabel(p){ return p==='personal' ? '개인용' : '분철용'; }
-function defaultPoolState(){ return {status:'need', qty:0, round:1, stage:'구하는 중'}; }
+function defaultPoolState(){ return {status:'need', qty:0, round:1, stage:'구하는 중', offering:false}; }
 function defaultItemState(){ return {split: defaultPoolState(), personal: defaultPoolState()}; }
 function migrateItemStateRecord(raw){
   if(!raw || typeof raw !== 'object') return defaultItemState();
@@ -493,7 +493,8 @@ function statusBadgeHtml(it, st){
   if(st.status==='need') return `<span class="status-tag">교환 필요</span>`;
   if(st.status==='trading') return `<span class="round-badge">${st.round}차</span> <span class="status-tag">${st.stage}</span>`;
   const label = st.status==='owned_original' ? '원래 보유' : '교환 완료';
-  return `<span class="status-tag" style="background:rgba(12,163,12,0.14); color:var(--good-text);">${label}${st.qty>1?` · 보유 ${st.qty}개`:''}</span>`;
+  const offerTag = st.offering ? ` <span class="status-tag" style="background:rgba(250,178,25,0.18); color:#a06600;">교환 제안중</span>` : '';
+  return `<span class="status-tag" style="background:rgba(12,163,12,0.14); color:var(--good-text);">${label}${st.qty>1?` · 보유 ${st.qty}개`:''}</span>${offerTag}`;
 }
 
 function renderMemberChips(){
